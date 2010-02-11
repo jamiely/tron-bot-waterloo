@@ -14,9 +14,15 @@ class TronBot(object):
     def __init__(self):
         super(TronBot, self).__init__()
         self.marks = {}
+        self.retreat = False
         
         self.setFollowMode("right")
-    
+    def debug(self,msg):
+        return
+        if type(msg) == str:
+            sys.stderr.write("DEBUG:\t" + msg + "\n")
+        else:
+            sys.stderr.write("DEBUG:\t" + str   (msg) + "\n")    
     def _dictGetMin(self, d):
         k = d.keys()
         k.sort( key = d.__getitem__)
@@ -86,11 +92,7 @@ class TronBot(object):
             return [node]
             
         
-    def debug(self,msg):
-        if type(msg) == str:
-            sys.stderr.write("DEBUG:\t" + msg + "\n")
-        else:
-            sys.stderr.write("DEBUG:\t" + str   (msg) + "\n")
+
     
     def setFollowMode(self, mode):
         self.followMode = mode
@@ -137,7 +139,7 @@ class TronBot(object):
         # debug path to enemy
         distanceToEnemy = self.aStarDistance(board.me(), board.them())
         self.debug("distinace to enemy: " + str(distanceToEnemy))
-        if distanceToEnemy > 5:
+        if not self.retreat and distanceToEnemy > 5:
             path = self.astar(board.me(), board.them())
             if path:
                 path.pop(0)
@@ -147,6 +149,8 @@ class TronBot(object):
                     for dir in tron.DIRECTIONS:
                         if board.rel(dir) == path[0]:
                             finalMove = dir
+        else:
+            self.retreat = True
         
         return finalMove
     
@@ -241,9 +245,8 @@ class TronBot(object):
             return []
         return passable        
         
-
+tronBot = TronBot()
 def which_move(board):
-    tronBot = TronBot()
     return tronBot.getMove(board)
 
 # you do not need to modify this part
