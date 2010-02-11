@@ -2,10 +2,10 @@
 
 """Template for your tron bot"""
 
+import math
 import sys
 import tron
 import random
-import json
 
 
 class TronBot(object):
@@ -17,8 +17,80 @@ class TronBot(object):
         
         self.setFollowMode("right")
     
+    def _dictGetMin(self, d):
+        k = d.keys()
+        k.sort( key = d.__getitem__)
+        return k[0]
+    
+    def _dictKeysIntersect(self, a, b):
+        return filter(a.has_key, b.keys())
+    
+    def _getOpenSetFScores(self, openset, fScore):
+        return dict( (pos, fScore[pos]) for pos in openset )
+    
+    def astar(self, start, goal):
+        closedset = [] # start with empty set
+        openset = [start] # start with initial node
+        gScore = {start: 0} # distance of note from start?
+        hScore = {start: self.heuristicEstimateOfDistance(start, goal)}
+        fScore = {start: hScore[start]} # estimated total distance from start to goal
+        cameFrom = {}
+        while len(openset) > 0:
+            # get the fscores in the open set
+            openSetF = self._getOpenSetFScores(openset, fScore)
+            # self.debug('openset f')
+            # self.debug(openSetF)
+            node = self._dictGetMin( openSetF )
+            # self.debug('node')
+            # self.debug(node)
+            if node == goal:
+                return self.aStarReconstructPath(cameFrom, goal)
+            openset.remove(node)
+            closedset.append(node)
+            possibleDirections = [move for move in self.getPossible ( board, node).values() if board.passable(move)]
+            # self.debug('Possible: '+str(possibleDirections))
+            for neighbor in possibleDirections:
+                if neighbor in closedset:
+                    continue # just skip closedset members
+                tentativeG = gScore[node] + self.aStarDistance(node, neighbor)
+                if not neighbor in openset:
+                    openset.append(neighbor)
+                    tentativeBetter = True
+                elif tentativeG < gScore[neighbor]:
+                    tentativeBetter = True
+                else:
+                    tentativeBetter = False
+                if tentativeBetter:
+                    cameFrom[neighbor] = node
+                    gScore[neighbor] = tentativeG
+                    hScore[neighbor] = self.heuristicEstimateOfDistance(neighbor, goal)
+                    fScore[neighbor] = gScore[neighbor] + hScore[neighbor]
+        return False
+    
+    
+    def heuristicEstimateOfDistance(self, a, b):
+        # use regular distance for now
+        return self.aStarDistance(a,b)
+        
+    def aStarDistance(self, a, b):
+        """docstring for aStarDinstance"""
+        return math.sqrt((b[1]-a[1])**2 + (b[0]-a[0])**2)
+        
+    def aStarReconstructPath(self, cameFrom, node):
+        """docstring for aStarReconstructPath"""
+        if cameFrom.has_key(node):
+            p = self.aStarReconstructPath(cameFrom, cameFrom[node])
+            p.append(node)
+            return p
+        else:
+            return [node]
+            
+        
     def debug(self,msg):
-        sys.stderr.write("DEBUG:\t" + msg + "\n")
+        if type(msg) == str:
+            sys.stderr.write("DEBUG:\t" + msg + "\n")
+        else:
+            sys.stderr.write("DEBUG:\t" + str   (msg) + "\n")
     
     def setFollowMode(self, mode):
         self.followMode = mode
@@ -43,7 +115,7 @@ class TronBot(object):
             possible = [x for x in possible if x != None]
             possibleLen = len(possible)
             if possibleLen > 0:
-                self.debug(str(possibleLen)+" possible moves found: " + json.dumps(possible))
+                #self.debug(str(possibleLen)+" possible moves found: " + json.dumps(possible))
                 for dir in self.directions:
                     for pos in possible:
                         if board.rel(dir) == pos:
@@ -61,6 +133,20 @@ class TronBot(object):
             finalMove = [tron.NORTH]            
         self.decideMove (board, board.rel(finalMove), finalMove)            
         
+        
+        # debug path to enemy
+        distanceToEnemy = self.aStarDistance(board.me(), board.them())
+        self.debug("distinace to enemy: " + str(distanceToEnemy))
+        if distanceToEnemy > 5:
+            path = self.astar(board.me(), board.them())
+            if path:
+                path.pop(0)
+                #self.debug('me: '+str(board.me())+ ' them: '+str(board.them()))
+                #self.debug('astar path:\n' + str(path))
+                if len(path) > 0:
+                    for dir in tron.DIRECTIONS:
+                        if board.rel(dir) == path[0]:
+                            finalMove = dir
         
         return finalMove
     
@@ -143,16 +229,21 @@ class TronBot(object):
     def getMovesUsingRules(self, board, position, origin = None):
         return self.getMoves(board, position, origin, self.directions)
     
-    def getMoves(self, board, position, origin, directions = tron.DIRECTIONS):
-        possible = dict((dir, board.rel(dir, position)) for dir in tron.DIRECTIONS)
+    def getPossible(self, board, position, directions = tron.DIRECTIONS):
+        return dict((dir, board.rel(dir, position)) for dir in tron.DIRECTIONS)
+            
+    def getMoves(self, board, position, origin = None, directions = tron.DIRECTIONS):            
+
+        possible = self.getPossible(board, position, directions)
         passable = [dir for dir in possible if board.passable(possible[dir]) and possible[dir] != origin ]
         if not passable:
             # it seems we have already lost
             return []
         return passable        
         
-tronBot = TronBot()
+
 def which_move(board):
+    tronBot = TronBot()
     return tronBot.getMove(board)
 
 # you do not need to modify this part
