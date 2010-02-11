@@ -501,7 +501,7 @@ class JamieBoard(object):
             while board[wNext] != target :
                 w = wNext
                 wNext = board.rel(tron.WEST, wNext)
-            while board[eNext] != target 
+            while board[eNext] != target:
                 e = eNext
                 eNext = board.rel(tron.EAST, wNext)
             for pt in self.between(w,e):
